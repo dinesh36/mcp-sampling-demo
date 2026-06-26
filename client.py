@@ -9,6 +9,7 @@ from mcp.client.session import RequestContext
 from mcp.types import (
     CreateMessageRequestParams,
     CreateMessageResult,
+    LoggingMessageNotificationParams,
     TextContent,
     SamplingMessage,
 )
@@ -50,6 +51,17 @@ async def chat(input_messages: list[SamplingMessage], max_tokens=4000):
     return text
 
 
+async def logging_callback(params: LoggingMessageNotificationParams):
+    print(f"[Server Log] {params.data}")
+
+
+async def progress_callback(progress: float, total: float | None, message: str | None):
+    if total is not None:
+        print(f"[Progress] {progress}/{total} ({(progress / total) * 100:.1f}%)")
+    else:
+        print(f"[Progress] {progress}")
+
+
 async def sampling_callback(
     context: RequestContext, params: CreateMessageRequestParams
 ):
@@ -66,12 +78,13 @@ async def sampling_callback(
 async def run():
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(
-            read, write, sampling_callback=sampling_callback
+            read, write, sampling_callback=sampling_callback, logging_callback=logging_callback
         ) as session:
             await session.initialize()
 
             result = await session.call_tool(
                 name="summarize",
+                progress_callback=progress_callback,
                 arguments={"text_to_summarize": """f
                 Flowers, also known as blossoms and blooms, are the reproductive structures of flowering plants. Typically, they are structured in four circular levels around the end of a stalk. These include: sepals, which are modified leaves that support the flower; petals, often designed to attract pollinators; male stamens, where pollen is presented; and female gynoecia, where pollen is received and its movement is facilitated to the egg. When flowers are arranged in a group, they are known collectively as an inflorescence.
 
